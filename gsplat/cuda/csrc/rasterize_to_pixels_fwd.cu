@@ -8,6 +8,18 @@ namespace gsplat {
 
 namespace cg = cooperative_groups;
 
+__device__ __forceinline__ float atomicMaxFloat(float* address, float val)
+{
+    int* address_as_int = (int*)address;
+    int old = *address_as_int, assumed;
+    do {
+        assumed = old;
+        old = atomicCAS(address_as_int, assumed,
+            __float_as_int(fmaxf(val, __int_as_float(assumed))));
+    } while (assumed != old);
+    return __int_as_float(old);
+}
+
 /****************************************************************************
  * Rasterization to Pixels Forward Pass
  ****************************************************************************/
@@ -33,7 +45,9 @@ __global__ void rasterize_to_pixels_fwd_kernel(
     const int32_t *__restrict__ flatten_ids,  // [n_isects]
     S *__restrict__ render_colors, // [C, image_height, image_width, COLOR_DIM]
     S *__restrict__ render_alphas, // [C, image_height, image_width, 1]
-    int32_t *__restrict__ last_ids // [C, image_height, image_width]
+    int32_t *__restrict__ last_ids, // [C, image_height, image_width]
+    int32_t *__restrict__ activated,   // [C, image_height, image_width]
+    S *__restrict__ significance   // [C, image_height, image_width]
 ) {
     // each thread draws one pixel, but also timeshares caching gaussians in a
     // shared tile
@@ -163,6 +177,14 @@ __global__ void rasterize_to_pixels_fwd_kernel(
             cur_idx = batch_start + t;
 
             T = next_T;
+
+            // update significance and activated
+            bool is_direct_projection = (delta.x >= 0.0f && delta.x < 1.0f) && 
+                            (delta.y >= 0.0f && delta.y < 1.0f);
+            if (is_direct_projection) {
+                atomicMaxFloat(&significance[id_batch[t]], vis);
+                atomicExch(&activated[id_batch[t]], 1);
+            }
         }
     }
 
@@ -185,7 +207,7 @@ __global__ void rasterize_to_pixels_fwd_kernel(
 }
 
 template <uint32_t CDIM>
-std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> call_kernel_with_dim(
+std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> call_kernel_with_dim(
     // Gaussian parameters
     const torch::Tensor &means2d,   // [C, N, 2] or [nnz, 2]
     const torch::Tensor &conics,    // [C, N, 3] or [nnz, 3]
@@ -239,6 +261,14 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> call_kernel_with_dim(
     torch::Tensor last_ids = torch::empty(
         {C, image_height, image_width}, means2d.options().dtype(torch::kInt32)
     );
+    torch::Tensor activated = torch::zeros(
+        {C, N},
+        means2d.options().dtype(torch::kInt32)
+    );
+    torch::Tensor significance = torch::zeros(
+        {C, N},
+        means2d.options().dtype(torch::kFloat32)
+    );
 
     at::cuda::CUDAStream stream = at::cuda::getCurrentCUDAStream();
     const uint32_t shared_mem =
@@ -281,13 +311,15 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor> call_kernel_with_dim(
             flatten_ids.data_ptr<int32_t>(),
             renders.data_ptr<float>(),
             alphas.data_ptr<float>(),
-            last_ids.data_ptr<int32_t>()
+            last_ids.data_ptr<int32_t>(),
+            activated.data_ptr<int32_t>(),
+            significance.data_ptr<float>()
         );
 
-    return std::make_tuple(renders, alphas, last_ids);
+    return std::make_tuple(renders, alphas, last_ids, activated, significance);
 }
 
-std::tuple<torch::Tensor, torch::Tensor, torch::Tensor>
+std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
 rasterize_to_pixels_fwd_tensor(
     // Gaussian parameters
     const torch::Tensor &means2d,   // [C, N, 2] or [nnz, 2]
