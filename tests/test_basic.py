@@ -462,6 +462,7 @@ def test_rasterize_to_pixels(test_data, channels: int):
     means = test_data["means"]
     opacities = test_data["opacities"]
     C = len(Ks)
+    N = len(means)
     colors = torch.randn(C, len(means), channels, device=device)
     backgrounds = torch.rand((C, colors.shape[-1]), device=device)
 
@@ -489,7 +490,7 @@ def test_rasterize_to_pixels(test_data, channels: int):
     backgrounds.requires_grad = True
 
     # forward
-    render_colors, render_alphas, _, _ = rasterize_to_pixels(
+    render_colors, render_alphas, activated, significance = rasterize_to_pixels(
         means2d,
         conics,
         colors,
@@ -515,6 +516,9 @@ def test_rasterize_to_pixels(test_data, channels: int):
     )
     torch.testing.assert_close(render_colors, _render_colors)
     torch.testing.assert_close(render_alphas, _render_alphas)
+
+    assert activated.shape == (C, N)
+    assert significance.shape == (C, N)
 
     # backward
     v_render_colors = torch.randn_like(render_colors)
