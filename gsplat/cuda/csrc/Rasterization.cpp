@@ -16,7 +16,7 @@ namespace gsplat {
 // 3DGS
 ////////////////////////////////////////////////////
 
-std::tuple<at::Tensor, at::Tensor, at::Tensor> rasterize_to_pixels_3dgs_fwd(
+std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor, at::Tensor> rasterize_to_pixels_3dgs_fwd(
     // Gaussian parameters
     const at::Tensor means2d,   // [C, N, 2] or [nnz, 2]
     const at::Tensor conics,    // [C, N, 3] or [nnz, 3]
@@ -47,6 +47,7 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> rasterize_to_pixels_3dgs_fwd(
     }
 
     uint32_t C = tile_offsets.size(0); // number of cameras
+    uint32_t N = means2d.size(1);      // number of gaussians
     uint32_t channels = colors.size(-1);
 
     at::Tensor renders =
@@ -55,6 +56,12 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> rasterize_to_pixels_3dgs_fwd(
         at::empty({C, image_height, image_width, 1}, means2d.options());
     at::Tensor last_ids = at::empty(
         {C, image_height, image_width}, means2d.options().dtype(at::kInt)
+    );
+    at::Tensor activated = at::empty(
+        {C, N}, means2d.options().dtype(at::kInt)
+    );
+    at::Tensor significance = at::empty(
+        {C, N}, means2d.options().dtype(at::kFloat)
     );
 
 #define __LAUNCH_KERNEL__(N)                                                   \
@@ -73,7 +80,9 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> rasterize_to_pixels_3dgs_fwd(
             flatten_ids,                                                       \
             renders,                                                           \
             alphas,                                                            \
-            last_ids                                                           \
+            last_ids,                                                          \
+            activated,                                                         \
+            significance                                                       \
         );                                                                     \
         break;
 
@@ -105,7 +114,7 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor> rasterize_to_pixels_3dgs_fwd(
     }
 #undef __LAUNCH_KERNEL__
 
-    return std::make_tuple(renders, alphas, last_ids);
+    return std::make_tuple(renders, alphas, last_ids, activated, significance);
 }
 
 std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor, at::Tensor>

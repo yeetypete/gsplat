@@ -1,29 +1,36 @@
 {
-    "build": {
-      "context": "..",
-      "dockerfile": "../Dockerfile"
-    },
-    "containerEnv": {
-      "SHELL": "/bin/bash"
-    },
-    "customizations": {
-      "vscode": {
-        "extensions": [
-          "charliermarsh.ruff",
-          "ms-azuretools.vscode-docker",
-          "ms-python.python",
-          "ms-python.vscode-pylance",
-          "redhat.vscode-yaml"
-        ]
-      }
-    },
-    "hostRequirements": {
-      "gpu": true
-    },
-    "name": "gsplat",
-    "remoteUser": "vscode",
-    "runArgs": [
-      "--ipc=host",
-      "--gpus=all"
-    ]
-  }
+  "build": {
+    "context": "..",
+    "dockerfile": "../Dockerfile"
+  },
+  "containerEnv": {
+    "SHELL": "/bin/bash"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "charliermarsh.ruff",
+        "ms-azuretools.vscode-docker",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "redhat.vscode-yaml"
+      ]
+    }
+  },
+  "hostRequirements": {
+    "gpu": true
+  },
+  "mounts": [
+    {
+      "source": "segsplat-cache",
+      "target": "/home/vscode/.cache",
+      "type": "volume"
+    }
+  ],
+  "name": "gsplat",
+  "remoteUser": "vscode",
+  "runArgs": [
+    "--ipc=host",
+    "--gpus=all"
+  ]
+}

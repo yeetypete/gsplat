@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.4.1-devel-ubuntu22.04
+FROM nvidia/cuda:12.8.1-devel-ubuntu22.04
 
 ARG USERNAME=vscode
 ARG USER_UID=1000
@@ -31,6 +31,12 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
 
 # hadolint ignore=DL3013,DL3042
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install torch torchvision torchaudio
+    export TORCH_CUDA_ARCH_LIST="12.0+PTX" && \
+    pip install --pre --index-url=https://download.pytorch.org/whl/nightly/cu128 \
+    torch torchvision torchaudio && \
+    pip install ninja numpy jaxtyping rich pytest
+
+# create cache directory
+RUN mkdir -p /home/$USERNAME/.cache && chown -R $USERNAME:$USERNAME /home/$USERNAME/.cache
 
 USER $USERNAME

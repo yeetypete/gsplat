@@ -529,7 +529,7 @@ def rasterization(
     if colors.shape[-1] > channel_chunk:
         # slice into chunks
         n_chunks = (colors.shape[-1] + channel_chunk - 1) // channel_chunk
-        render_colors, render_alphas = [], []
+        render_colors, render_alphas, activated, significance = [], [], [], []
         for i in range(n_chunks):
             colors_chunk = colors[..., i * channel_chunk : (i + 1) * channel_chunk]
             backgrounds_chunk = (
@@ -537,7 +537,12 @@ def rasterization(
                 if backgrounds is not None
                 else None
             )
-            render_colors_, render_alphas_ = rasterize_to_pixels(
+            (
+                render_colors_,
+                render_alphas_,
+                activated_,
+                significance_,
+            ) = rasterize_to_pixels(
                 means2d,
                 conics,
                 colors_chunk,
@@ -553,10 +558,14 @@ def rasterization(
             )
             render_colors.append(render_colors_)
             render_alphas.append(render_alphas_)
+            activated.append(activated_)
+            significance.append(significance_)
         render_colors = torch.cat(render_colors, dim=-1)
         render_alphas = render_alphas[0]  # discard the rest
+        activated = activated[0]
+        significance = significance[0]
     else:
-        render_colors, render_alphas = rasterize_to_pixels(
+        render_colors, render_alphas, activated, significance = rasterize_to_pixels(
             means2d,
             conics,
             colors,
@@ -579,6 +588,8 @@ def rasterization(
             ],
             dim=-1,
         )
+
+    meta.update({"activated": activated, "significance": significance})
 
     return render_colors, render_alphas, meta
 

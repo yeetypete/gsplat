@@ -561,7 +561,7 @@ def rasterize_to_pixels(
         tile_width * tile_size >= image_width
     ), f"Assert Failed: {tile_width} * {tile_size} >= {image_width}"
 
-    render_colors, render_alphas = _RasterizeToPixels.apply(
+    render_colors, render_alphas, activated, significance = _RasterizeToPixels.apply(
         means2d.contiguous(),
         conics.contiguous(),
         colors.contiguous(),
@@ -578,7 +578,7 @@ def rasterize_to_pixels(
 
     if padded_channels > 0:
         render_colors = render_colors[..., :-padded_channels]
-    return render_colors, render_alphas
+    return render_colors, render_alphas, activated, significance
 
 
 @torch.no_grad()
@@ -895,9 +895,13 @@ class _RasterizeToPixels(torch.autograd.Function):
         flatten_ids: Tensor,  # [n_isects]
         absgrad: bool,
     ) -> Tuple[Tensor, Tensor]:
-        render_colors, render_alphas, last_ids = _make_lazy_cuda_func(
-            "rasterize_to_pixels_3dgs_fwd"
-        )(
+        (
+            render_colors,
+            render_alphas,
+            last_ids,
+            activated,
+            significance,
+        ) = _make_lazy_cuda_func("rasterize_to_pixels_3dgs_fwd")(
             means2d,
             conics,
             colors,
@@ -930,13 +934,15 @@ class _RasterizeToPixels(torch.autograd.Function):
 
         # double to float
         render_alphas = render_alphas.float()
-        return render_colors, render_alphas
+        return render_colors, render_alphas, activated, significance
 
     @staticmethod
     def backward(
         ctx,
         v_render_colors: Tensor,  # [C, H, W, 3]
         v_render_alphas: Tensor,  # [C, H, W, 1]
+        v_activated: Tensor,  # [C, H, W] # gradient of activated (ignored)
+        v_significance: Tensor,  # [C, H, W] # gradient of significance (ignored)
     ):
         (
             means2d,
