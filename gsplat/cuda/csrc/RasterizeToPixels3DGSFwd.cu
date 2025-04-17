@@ -51,8 +51,8 @@ __global__ void rasterize_to_pixels_3dgs_fwd_kernel(
         *__restrict__ render_colors, // [C, image_height, image_width, CDIM]
     scalar_t *__restrict__ render_alphas, // [C, image_height, image_width, 1]
     int32_t *__restrict__ last_ids, // [C, image_height, image_width]
-    int32_t *__restrict__ activated, // [C, image_height, image_width]
-    scalar_t *__restrict__ significance // [C, image_height, image_width]
+    int32_t *__restrict__ activated, // [C, N] or [nnz]
+    scalar_t *__restrict__ significance // [C, N] or [nnz]
 ) {
     // each thread draws one pixel, but also timeshares caching gaussians in a
     // shared tile
@@ -231,8 +231,8 @@ void launch_rasterize_to_pixels_3dgs_fwd_kernel(
     at::Tensor renders, // [C, image_height, image_width, channels]
     at::Tensor alphas,  // [C, image_height, image_width]
     at::Tensor last_ids, // [C, image_height, image_width]
-    at::Tensor activated, // [C, image_height, image_width]
-    at::Tensor significance // [C, image_height, image_width]
+    at::Tensor activated, // [C, N] or [nnz]
+    at::Tensor significance // [C, N] or [nnz]
 ) {
     bool packed = means2d.dim() == 2;
 

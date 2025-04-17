@@ -34,8 +34,8 @@ void launch_rasterize_to_pixels_3dgs_fwd_kernel(
     at::Tensor renders, // [C, image_height, image_width, channels]
     at::Tensor alphas,  // [C, image_height, image_width]
     at::Tensor last_ids, // [C, image_height, image_width]
-    at::Tensor activated, // [C, image_height, image_width]
-    at::Tensor significance // [C, image_height, image_width]
+    at::Tensor activated, // [C, N] or [nnz]
+    at::Tensor significance // [C, N] or [nnz]
 );
 
 template <uint32_t CDIM>

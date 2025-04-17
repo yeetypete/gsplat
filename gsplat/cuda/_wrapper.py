@@ -460,7 +460,7 @@ def rasterize_to_pixels(
     masks: Optional[Tensor] = None,  # [C, tile_height, tile_width]
     packed: bool = False,
     absgrad: bool = False,
-) -> Tuple[Tensor, Tensor]:
+) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
     """Rasterizes Gaussians to pixels.
 
     Args:
@@ -483,6 +483,8 @@ def rasterize_to_pixels(
 
         - **Rendered colors**. [C, image_height, image_width, channels]
         - **Rendered alphas**. [C, image_height, image_width, 1]
+        - **Activated**. [C, N] or [nnz]. The activated pixels for each Gaussian.
+        - **Significance**. [C, N] or [nnz]. The significance of each Gaussian.
     """
 
     C = isect_offsets.size(0)
@@ -941,8 +943,8 @@ class _RasterizeToPixels(torch.autograd.Function):
         ctx,
         v_render_colors: Tensor,  # [C, H, W, 3]
         v_render_alphas: Tensor,  # [C, H, W, 1]
-        v_activated: Tensor,  # [C, H, W] # gradient of activated (ignored)
-        v_significance: Tensor,  # [C, H, W] # gradient of significance (ignored)
+        v_activated: Tensor,  # [C, N] gradient of activated (ignored)
+        v_significance: Tensor,  # [C, N] gradient of significance (ignored)
     ):
         (
             means2d,
