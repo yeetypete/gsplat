@@ -59,12 +59,10 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor, at::Tensor> rasterize
     at::Tensor last_ids = at::empty(
         {C, image_height, image_width}, means2d.options().dtype(at::kInt)
     );
-    at::Tensor activated = at::empty(
+    at::Tensor activated = at::zeros(
         {C, N}, means2d.options().dtype(at::kInt)
     );
-    at::Tensor significance = at::empty(
-        {C, N}, means2d.options().dtype(at::kFloat)
-    );
+    at::Tensor significance = at::zeros({C, N}, means2d.options());
 
 #define __LAUNCH_KERNEL__(N)                                                   \
     case N:                                                                    \
