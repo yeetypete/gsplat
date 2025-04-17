@@ -46,8 +46,10 @@ std::tuple<at::Tensor, at::Tensor, at::Tensor, at::Tensor, at::Tensor> rasterize
         CHECK_INPUT(masks.value());
     }
 
+    bool packed = means2d.dim() == 2;
+
     uint32_t C = tile_offsets.size(0); // number of cameras
-    uint32_t N = means2d.size(1);      // number of gaussians
+    uint32_t N = packed ? 0 : means2d.size(1); // number of gaussians
     uint32_t channels = colors.size(-1);
 
     at::Tensor renders =
